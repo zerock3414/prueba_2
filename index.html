@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Dinámica: Plano Inclinado con Fricción</title>
+  <!-- Tailwind CSS permitido por CSP -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Estilos personalizados y variables de accesibilidad */
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(17, 24, 39, 0.85);
+      --card-border: rgba(55, 65, 81, 0.5);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-cyan: #06b6d4;
+      --weight-red: #ef4444;
+      --parallel-orange: #f97316;
+      --perp-blue: #3b82f6;
+      --normal-green: #22c55e;
+      --friction-purple: #a855f7;
+    }
+    
+    html.light {
+      --bg-color: #f8fafc;
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --card-border: rgba(226, 232, 240, 0.9);
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    /* Estilo de sliders modernos */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 9999px;
+      background: #374151;
+      outline: none;
+      transition: background 0.2s;
+    }
+    html.light input[type=range] {
+      background: #e2e8f0;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #06b6d4;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+      transition: transform 0.15s, background-color 0.15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: #38bdf8;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #06b6d4;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+      border: none;
+    }
+
+    /* Tooltip animado y canvas crisp */
+    canvas {
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+
+    /* Insignias con pulso sutil */
+    @keyframes pulseSubtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.88; transform: scale(1.015); }
+    }
+    .status-pulse {
+      animation: pulseSubtle 2.5s infinite ease-in-out;
+    }
+
+    /* Notación matemática limpia sin fuentes externas bloqueadas */
+    .math-sym {
+      font-family: 'Cambria Math', 'Times New Roman', serif;
+      font-style: italic;
+    }
+    .math-box {
+      font-family: 'Cambria Math', 'Times New Roman', serif;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-3 md:p-6 antialiased selection:bg-cyan-500 selection:text-white">
+
+  <!-- ENCABEZADO Y PRESETS -->
+  <header class="max-w-7xl mx-auto mb-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-gray-700/50">
+      <div>
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+              Dinámica de la Partícula: <span class="text-cyan-400">Plano Inclinado</span>
+            </h1>
+            <p class="text-xs md:text-sm text-gray-400">
+              Segunda Ley de Newton, descomposición de fuerzas vectoriales y rozamiento cinético
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets de Experimento Rápido y Modo Claro/Oscuro -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-1">Modos de Experimento:</span>
+        <button onclick="setPreset('noFriction')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 transition">
+          🏎️ Sin Fricción
+        </button>
+        <button onclick="setPreset('criticalAngle')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition">
+          ⚖️ Ángulo Crítico (v cte)
+        </button>
+        <button onclick="setPreset('stuck')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition">
+          🛑 Bloqueado (a &lt; 0)
+        </button>
+        <button onclick="setPreset('steep')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 transition">
+          📐 Pendiente 60°
+        </button>
+        <button onclick="setPreset('moon')" class="px-2.5 py-1.5 text-xs font-medium rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition">
+          🌕 Gravedad Lunar
+        </button>
+
+        <!-- Botón Tema Claro/Oscuro -->
+        <button id="themeToggleBtn" onclick="toggleTheme()" title="Cambiar tema claro/oscuro" class="p-2 ml-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition">
+          <svg id="themeIconDark" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg id="themeIconLight" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL: GRID RESPONSIVE -->
+  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- COLUMNA IZQUIERDA: SIMULACIÓN PRINCIPAL Y GRÁFICAS CINEMÁTICAS (7 COLS EN LG) -->
+    <div class="lg:col-span-7 flex flex-col gap-6">
+
+      <!-- TARJETA: ESCENA DEL PLANO INCLINADO -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur relative flex flex-col">
+        
+        <!-- Barra superior del visor -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="inline-flex w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+            <h2 class="text-sm font-semibold tracking-wide uppercase text-gray-300">Escena Física &amp; Fuerzas Reales</h2>
+          </div>
+          <!-- Opciones de visualización -->
+          <div class="flex items-center gap-3 text-xs text-gray-400">
+            <label class="flex items-center gap-1.5 cursor-pointer hover:text-gray-200">
+              <input type="checkbox" id="checkRuler" checked onchange="redrawCanvasOnly()" class="rounded bg-gray-800 border-gray-700 text-cyan-500 focus:ring-0">
+              <span>Regla (m)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Canvas de la Simulación del Plano Inclinado -->
+        <div class="relative w-full aspect-[16/10] bg-gradient-to-b from-gray-950 to-slate-900 rounded-xl overflow-hidden border border-gray-800/80 shadow-inner">
+          <canvas id="simCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+          
+          <!-- Lectura flotante en pantalla (HUD) -->
+          <div class="absolute top-3 left-3 bg-gray-900/85 backdrop-blur border border-gray-700/60 rounded-lg p-2 text-xs space-y-1 shadow-lg pointer-events-none">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-gray-400 font-medium">Tiempo <span class="math-sym">t</span>:</span>
+              <span id="hudTime" class="font-mono font-bold text-cyan-300">0.00 s</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-gray-400 font-medium">Posición <span class="math-sym">x</span>:</span>
+              <span id="hudPos" class="font-mono font-bold text-emerald-300">0.00 m</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-gray-400 font-medium">Velocidad <span class="math-sym">v</span>:</span>
+              <span id="hudVel" class="font-mono font-bold text-sky-300">0.00 m/s</span>
+            </div>
+          </div>
+
+          <!-- Medidor de escala de vectores -->
+          <div class="absolute bottom-3 left-3 text-[11px] text-gray-400 bg-gray-950/70 px-2 py-1 rounded border border-gray-800 pointer-events-none">
+            Longitud de rampa: <span id="hudRampLen" class="text-gray-200 font-bold">10.0 m</span>
+          </div>
+        </div>
+
+        <!-- Leyenda de Fuerzas Reales sobre el Cuerpo -->
+        <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] bg-gray-950/60 border border-gray-800/80 rounded-xl p-2.5">
+          <div class="flex items-center gap-1.5" title="Peso gravitatorio total vertical (fuerza real)">
+            <span class="w-3 h-3 rounded-sm bg-red-500 flex-shrink-0 shadow-[0_0_6px_#ef4444]"></span>
+            <span class="text-gray-300 font-medium">Peso <span class="text-red-400 font-bold math-sym">P = mg</span></span>
+          </div>
+          <div class="flex items-center gap-1.5" title="Fuerza normal perpendicular a la superficie de contacto">
+            <span class="w-3 h-3 rounded-sm bg-green-500 flex-shrink-0 shadow-[0_0_6px_#22c55e]"></span>
+            <span class="text-gray-300 font-medium">Normal <span class="text-green-400 font-bold math-sym">N</span></span>
+          </div>
+          <div class="flex items-center gap-1.5" title="Fuerza de fricción paralela opuesta al movimiento">
+            <span class="w-3 h-3 rounded-sm bg-purple-500 flex-shrink-0 shadow-[0_0_6px_#a855f7]"></span>
+            <span class="text-gray-300 font-medium">Fricción <span class="text-purple-400 font-bold math-sym">f = μN</span></span>
+          </div>
+          <div class="flex items-center gap-1.5" title="Aceleración neta del cuerpo a lo largo de la rampa">
+            <span class="w-3 h-3 rounded-sm bg-cyan-400 flex-shrink-0 shadow-[0_0_6px_#06b6d4]"></span>
+            <span class="text-gray-300 font-medium">Aceleración <span class="text-cyan-400 font-bold math-sym">a</span></span>
+          </div>
+        </div>
+        <div class="mt-1.5 flex items-center justify-center gap-1.5 text-[11px] text-gray-500">
+          <span>💡 En el cuerpo se muestran solo las fuerzas reales aplicadas. La descomposición en componentes (<span class="text-orange-400 font-semibold">mg·sinθ</span> y <span class="text-blue-400 font-semibold">mg·cosθ</span>) se aprecia en el <strong>Diagrama de Cuerpo Libre (DCL)</strong>.</span>
+        </div>
+
+        <!-- Barra de Botones de Control de Reproducción -->
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-800">
+          <div class="flex items-center gap-2">
+            <!-- Botón Iniciar -->
+            <button id="btnPlay" onclick="togglePlay()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25 transition active:scale-95">
+              <svg id="playIcon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              <span id="playText">▶️ Iniciar</span>
+            </button>
+
+            <!-- Botón Reiniciar animación -->
+            <button onclick="resetSimulation()" class="px-3 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs md:text-sm font-medium flex items-center gap-1.5 border border-gray-700 transition active:scale-95" title="Reiniciar tiempo y posición al inicio">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>↻ Reiniciar</span>
+            </button>
+
+            <!-- Botón Restablecer parámetros por defecto -->
+            <button onclick="resetParameters()" class="px-3 py-2 rounded-xl bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 text-xs md:text-sm font-medium flex items-center gap-1.5 border border-gray-700/60 transition active:scale-95" title="Restablecer todos los sliders a valores iniciales">
+              <span>🔄 Restablecer parámetros</span>
+            </button>
+          </div>
+
+          <!-- Selector de velocidad de simulación -->
+          <div class="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-950/70 p-1 rounded-lg border border-gray-800">
+            <span class="px-2 text-gray-400 font-medium">Velocidad:</span>
+            <button onclick="setSimSpeed(0.25)" class="speed-btn px-2 py-1 rounded font-mono hover:bg-gray-800" data-speed="0.25">0.25x</button>
+            <button onclick="setSimSpeed(0.5)" class="speed-btn px-2 py-1 rounded font-mono hover:bg-gray-800" data-speed="0.5">0.5x</button>
+            <button onclick="setSimSpeed(1.0)" class="speed-btn px-2 py-1 rounded font-mono bg-cyan-500/20 text-cyan-400 font-semibold" data-speed="1.0">1.0x</button>
+            <button onclick="setSimSpeed(2.0)" class="speed-btn px-2 py-1 rounded font-mono hover:bg-gray-800" data-speed="2.0">2.0x</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TARJETA: CINEMÁTICA Y GRÁFICAS DINÁMICAS SINCRONIZADAS -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur flex flex-col">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div>
+            <h2 class="text-sm font-semibold tracking-wide uppercase text-gray-300 flex items-center gap-2">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+              </svg>
+              Gráficas Dinámicas de Cinemática
+            </h2>
+            <p class="text-xs text-gray-400">
+              Ecuaciones de movimiento uniformemente acelerado (M.R.U.A.): <span class="math-sym">x(t)</span>, <span class="math-sym">v(t)</span>, <span class="math-sym">a(t)</span>
+            </p>
+          </div>
+          <div class="text-xs text-gray-400 italic">
+            Pasa el cursor para ver valores en cualquier instante <span class="math-sym">t</span>
+          </div>
+        </div>
+
+        <!-- Contenedor de las 3 Gráficas Dinámicas -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          
+          <!-- Gráfica 1: x(t) Posición -->
+          <div class="bg-gray-950/80 border border-gray-800 rounded-xl p-3 flex flex-col relative group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                Posición <span class="math-sym">x(t)</span> [m]
+              </span>
+              <span id="graphLabelX" class="text-xs font-mono text-emerald-300">0.00 m</span>
+            </div>
+            <div class="relative w-full aspect-[4/3] bg-gray-900/50 rounded-lg overflow-hidden border border-gray-800">
+              <canvas id="graphCanvasX" class="w-full h-full block"></canvas>
+            </div>
+            <div class="mt-1 text-[11px] text-gray-500 font-mono text-center">
+              x = x₀ + v₀t + ½at²
+            </div>
+          </div>
+
+          <!-- Gráfica 2: v(t) Velocidad -->
+          <div class="bg-gray-950/80 border border-gray-800 rounded-xl p-3 flex flex-col relative group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                Velocidad <span class="math-sym">v(t)</span> [m/s]
+              </span>
+              <span id="graphLabelV" class="text-xs font-mono text-sky-300">0.00 m/s</span>
+            </div>
+            <div class="relative w-full aspect-[4/3] bg-gray-900/50 rounded-lg overflow-hidden border border-gray-800">
+              <canvas id="graphCanvasV" class="w-full h-full block"></canvas>
+            </div>
+            <div class="mt-1 text-[11px] text-gray-500 font-mono text-center">
+              v = v₀ + at
+            </div>
+          </div>
+
+          <!-- Gráfica 3: a(t) Aceleración -->
+          <div class="bg-gray-950/80 border border-gray-800 rounded-xl p-3 flex flex-col relative group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                Aceleración <span class="math-sym">a(t)</span> [m/s²]
+              </span>
+              <span id="graphLabelA" class="text-xs font-mono text-amber-300">0.00 m/s²</span>
+            </div>
+            <div class="relative w-full aspect-[4/3] bg-gray-900/50 rounded-lg overflow-hidden border border-gray-800">
+              <canvas id="graphCanvasA" class="w-full h-full block"></canvas>
+            </div>
+            <div class="mt-1 text-[11px] text-gray-500 font-mono text-center">
+              a = g(sinθ - μ cosθ)
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- COLUMNA DERECHA: ESTADO FÍSICO, CONTROLES, ANÁLISIS Y DCL (5 COLS EN LG) -->
+    <div class="lg:col-span-5 flex flex-col gap-6">
+
+      <!-- TARJETA DESTACADA: ACELERACIÓN & INDICADOR DE ESTADO FÍSICO -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur">
+        
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Resultado Dinámico Clave</span>
+          <span class="text-xs text-gray-500 font-mono">ΣF = m·a</span>
+        </div>
+
+        <!-- Gran Display de Aceleración -->
+        <div class="flex items-baseline justify-between p-4 rounded-xl bg-gray-950/80 border border-gray-800 shadow-inner">
+          <div>
+            <div class="text-xs font-medium text-gray-400 mb-0.5">Aceleración Neta (<span class="math-sym">a</span>):</div>
+            <div class="text-3xl md:text-4xl font-extrabold font-mono tracking-tight" id="mainAccelValue">
+              +0.00 <span class="text-sm font-sans font-normal text-gray-400">m/s²</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-[11px] text-gray-400">Fuerza Paralela Neta (<span class="math-sym">ΣF<sub>∥</sub></span>)</div>
+            <div id="netForceValue" class="text-xl font-bold font-mono text-cyan-400">+0.00 N</div>
+          </div>
+        </div>
+
+        <!-- Indicador de Estado Físico Exigido (a > 0, a = 0, a < 0) -->
+        <div id="stateBanner" class="mt-3 p-3 rounded-xl border flex items-start gap-2.5 transition-all duration-300">
+          <div id="stateIcon" class="mt-0.5 flex-shrink-0">
+            <!-- Icono dinámico inyectado por JS -->
+          </div>
+          <div>
+            <div id="stateTitle" class="text-xs md:text-sm font-bold"></div>
+            <div id="stateDesc" class="text-xs text-gray-300 mt-0.5 leading-relaxed"></div>
+          </div>
+        </div>
+
+        <!-- Barra Comparativa Visual de Fuerzas Paralelas -->
+        <div class="mt-4 pt-3 border-t border-gray-800/80">
+          <div class="flex items-center justify-between text-xs mb-1.5">
+            <span class="text-orange-400 font-medium">Impulso: <span class="font-mono" id="barImpulseText">0 N</span></span>
+            <span class="text-purple-400 font-medium">Fricción: <span class="font-mono" id="barFrictionText">0 N</span></span>
+          </div>
+          <div class="w-full h-3 bg-gray-950 rounded-full overflow-hidden flex border border-gray-800">
+            <div id="barImpulse" class="bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-150" style="width: 50%;"></div>
+            <div id="barFriction" class="bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-150" style="width: 50%;"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-gray-500 mt-1">
+            <span>mg·sin(θ) [hacia abajo]</span>
+            <span>f = μN [hacia arriba]</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TARJETA: CONTROLES INTERACTIVOS (SLIDERS) -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur">
+        
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-sm font-semibold tracking-wide uppercase text-gray-300 flex items-center gap-2">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            Parámetros del Sistema
+          </h2>
+          <span class="text-[11px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20 font-medium">Tiempo Real</span>
+        </div>
+
+        <div class="space-y-4">
+          
+          <!-- Slider: Masa m -->
+          <div>
+            <div class="flex justify-between items-center text-xs mb-1.5">
+              <label for="inputMass" class="font-medium text-gray-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                Masa del cuerpo (<span class="math-sym">m</span>):
+              </label>
+              <div class="flex items-center gap-1">
+                <span id="valMass" class="font-mono font-bold text-cyan-400 text-sm">5.0</span>
+                <span class="text-gray-400 text-xs">kg</span>
+              </div>
+            </div>
+            <input type="range" id="inputMass" min="0.5" max="30.0" step="0.5" value="5.0" oninput="updateFromInputs()">
+            <div class="flex justify-between text-[10px] text-gray-500 mt-0.5">
+              <span>0.5 kg</span>
+              <span>15 kg</span>
+              <span>30.0 kg</span>
+            </div>
+          </div>
+
+          <!-- Slider: Ángulo theta -->
+          <div>
+            <div class="flex justify-between items-center text-xs mb-1.5">
+              <label for="inputAngle" class="font-medium text-gray-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-orange-400"></span>
+                Ángulo de inclinación (<span class="math-sym">θ</span>):
+              </label>
+              <div class="flex items-center gap-1">
+                <span id="valAngle" class="font-mono font-bold text-orange-400 text-sm">30.0</span>
+                <span class="text-gray-400 text-xs">°</span>
+              </div>
+            </div>
+            <input type="range" id="inputAngle" min="0.0" max="85.0" step="0.5" value="30.0" oninput="updateFromInputs()">
+            <div class="flex justify-between text-[10px] text-gray-500 mt-0.5">
+              <span>0° (Horizontal)</span>
+              <span>45°</span>
+              <span>85° (Casi vertical)</span>
+            </div>
+          </div>
+
+          <!-- Slider: Coeficiente de Fricción mu -->
+          <div>
+            <div class="flex justify-between items-center text-xs mb-1.5">
+              <label for="inputMu" class="font-medium text-gray-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                Coeficiente de fricción cinético (<span class="math-sym">μ</span>):
+              </label>
+              <div class="flex items-center gap-1">
+                <span id="valMu" class="font-mono font-bold text-purple-400 text-sm">0.25</span>
+                <span class="text-gray-400 text-xs">(adimensional)</span>
+              </div>
+            </div>
+            <input type="range" id="inputMu" min="0.00" max="1.00" step="0.01" value="0.25" oninput="updateFromInputs()">
+            <div class="flex justify-between text-[10px] text-gray-500 mt-0.5">
+              <span>0.00 (Superficie ideal de hielo)</span>
+              <span>0.50</span>
+              <span>1.00 (Fricción muy alta)</span>
+            </div>
+          </div>
+
+          <!-- Slider: Gravedad g -->
+          <div>
+            <div class="flex justify-between items-center text-xs mb-1.5">
+              <label for="inputGravity" class="font-medium text-gray-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                Aceleración de gravedad (<span class="math-sym">g</span>):
+              </label>
+              <div class="flex items-center gap-1">
+                <span id="valGravity" class="font-mono font-bold text-red-400 text-sm">9.81</span>
+                <span class="text-gray-400 text-xs">m/s²</span>
+              </div>
+            </div>
+            <input type="range" id="inputGravity" min="1.0" max="25.0" step="0.1" value="9.81" oninput="updateFromInputs()">
+            <div class="flex justify-between text-[10px] text-gray-500 mt-0.5">
+              <span>1.0 m/s²</span>
+              <span>Tierra: 9.81 m/s²</span>
+              <span>25.0 m/s²</span>
+            </div>
+          </div>
+
+          <!-- Acordeón: Condiciones iniciales opcionales (x0, v0) -->
+          <details class="group bg-gray-950/60 rounded-xl border border-gray-800/80 p-3">
+            <summary class="text-xs font-semibold text-gray-400 cursor-pointer list-none flex items-center justify-between select-none">
+              <span>⚙️ Condiciones iniciales opcionales (<span class="math-sym">x₀, v₀</span>)</span>
+              <span class="text-gray-500 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div class="mt-3 pt-3 border-t border-gray-800 space-y-3">
+              <div>
+                <div class="flex justify-between text-xs mb-1 text-gray-300">
+                  <span>Posición inicial (<span class="math-sym">x₀</span>):</span>
+                  <span id="valX0" class="font-mono text-cyan-300">0.0 m</span>
+                </div>
+                <input type="range" id="inputX0" min="0.0" max="8.0" step="0.5" value="0.0" oninput="updateFromInputs()">
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-1 text-gray-300">
+                  <span>Velocidad inicial (<span class="math-sym">v₀</span> hacia abajo):</span>
+                  <span id="valV0" class="font-mono text-cyan-300">0.0 m/s</span>
+                </div>
+                <input type="range" id="inputV0" min="0.0" max="10.0" step="0.5" value="0.0" oninput="updateFromInputs()">
+              </div>
+            </div>
+          </details>
+
+        </div>
+
+      </div>
+
+      <!-- TARJETA: PANEL DE ANÁLISIS & DIAGRAMA DE CUERPO LIBRE (DCL) -->
+      <div class="bg-gray-900/90 border border-gray-800 rounded-2xl p-4 md:p-5 shadow-2xl backdrop-blur flex flex-col">
+        
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold tracking-wide uppercase text-gray-300 flex items-center gap-2">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Panel de Análisis &amp; DCL
+          </h2>
+        </div>
+
+        <!-- Tabla interactiva con magnitudes en tiempo real -->
+        <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+          <div class="p-2 rounded-lg bg-gray-950/70 border border-gray-800">
+            <span class="text-gray-400 block text-[10px] uppercase font-semibold">Peso (<span class="math-sym">mg</span>)</span>
+            <span id="resWeight" class="font-mono font-bold text-red-400">49.05 N</span>
+          </div>
+          <div class="p-2 rounded-lg bg-gray-950/70 border border-gray-800">
+            <span class="text-gray-400 block text-[10px] uppercase font-semibold">Fuerza Normal (<span class="math-sym">N = mg·cosθ</span>)</span>
+            <span id="resNormal" class="font-mono font-bold text-green-400">42.48 N</span>
+          </div>
+          <div class="p-2 rounded-lg bg-gray-950/70 border border-gray-800">
+            <span class="text-gray-400 block text-[10px] uppercase font-semibold">Impulso (<span class="math-sym">mg·sinθ</span>)</span>
+            <span id="resParallel" class="font-mono font-bold text-orange-400">24.53 N</span>
+          </div>
+          <div class="p-2 rounded-lg bg-gray-950/70 border border-gray-800">
+            <span class="text-gray-400 block text-[10px] uppercase font-semibold">Fricción (<span class="math-sym">f = μN</span>)</span>
+            <span id="resFriction" class="font-mono font-bold text-purple-400">10.62 N</span>
+          </div>
+        </div>
+
+        <!-- Diagrama de Cuerpo Libre (DCL) Interactivo -->
+        <div class="bg-gray-950/90 border border-gray-800 rounded-xl p-3 flex flex-col items-center">
+          <div class="w-full flex flex-wrap items-center justify-between text-xs text-gray-400 mb-2 gap-2">
+            <div class="flex items-center gap-1.5">
+              <span class="font-semibold text-gray-200">Diagrama de Cuerpo Libre (DCL)</span>
+              <span class="text-[10px] text-gray-500 hidden sm:inline">(Ejes rotados x', y')</span>
+            </div>
+            <label class="flex items-center gap-1.5 cursor-pointer hover:text-cyan-300 text-[11px] bg-gray-900/90 px-2 py-1 rounded-lg border border-gray-700/60">
+              <input type="checkbox" id="checkShowComponents" checked onchange="redrawCanvasOnly()" class="rounded bg-gray-800 border-gray-700 text-cyan-500 focus:ring-0">
+              <span>Descomponer peso (<span class="text-orange-400 font-semibold">mg·sinθ</span>, <span class="text-blue-400 font-semibold">mg·cosθ</span>)</span>
+            </label>
+          </div>
+          <div class="relative w-full aspect-[16/9] max-h-52 bg-gray-900/60 rounded-lg overflow-hidden border border-gray-800/80">
+            <canvas id="fbdCanvas" class="w-full h-full block"></canvas>
+          </div>
+          <!-- Leyenda del DCL -->
+          <div class="mt-2 w-full flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10px] text-gray-400 border-t border-gray-800/60 pt-2">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> P = mg</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> N</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500"></span> f = μN</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span> mg·sinθ</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> mg·cosθ</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- SECCIÓN EDUCATIVA DESPLEGABLE: ¿QUÉ ESTÁ OCURRIENDO FÍSICAMENTE? -->
+  <section class="max-w-7xl mx-auto mt-6">
+    <details class="group bg-gray-900/80 border border-gray-800 rounded-2xl p-5 shadow-xl transition-all">
+      <summary class="cursor-pointer list-none flex items-center justify-between text-base font-bold text-white select-none">
+        <div class="flex items-center gap-3">
+          <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          </div>
+          <span>¿Qué está ocurriendo físicamente? Guía de Dinámica y Leyes de Newton</span>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-normal text-cyan-400">
+          <span class="group-open:hidden">Abrir explicación conceptual</span>
+          <span class="hidden group-open:inline">Cerrar explicación</span>
+          <span class="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
+        </div>
+      </summary>
+
+      <div class="mt-5 pt-5 border-t border-gray-800 grid grid-cols-1 md:grid-cols-3 gap-6 text-xs md:text-sm text-gray-300 leading-relaxed">
+        
+        <!-- Bloque 1: Descomposición y Segunda Ley -->
+        <div class="bg-gray-950/50 p-4 rounded-xl border border-gray-800">
+          <h3 class="font-bold text-cyan-400 text-sm mb-2 flex items-center gap-1.5">
+            1. Descomposición de Fuerzas
+          </h3>
+          <p class="mb-2">
+            Al rotar el sistema de coordenadas de modo que el eje <span class="math-sym">x</span> sea paralelo a la rampa y el eje <span class="math-sym">y</span> sea perpendicular:
+          </p>
+          <ul class="space-y-1.5 list-disc list-inside text-gray-400 font-mono text-[11px] md:text-xs">
+            <li>Eje ⊥: <span class="text-green-400">N - mg·cos(θ) = 0</span> ⇒ <span class="text-green-300">N = mg·cos(θ)</span></li>
+            <li>Fricción: <span class="text-purple-400">f = μ·N = μ·mg·cos(θ)</span></li>
+            <li>Eje ∥: <span class="text-orange-400">ΣF = mg·sin(θ) - f</span></li>
+          </ul>
+        </div>
+
+        <!-- Bloque 2: Por qué la masa se cancela -->
+        <div class="bg-gray-950/50 p-4 rounded-xl border border-gray-800">
+          <h3 class="font-bold text-amber-400 text-sm mb-2 flex items-center gap-1.5">
+            2. Independencia de la Masa
+          </h3>
+          <p class="mb-2">
+            Aplicando la Segunda Ley de Newton <span class="math-sym font-semibold text-gray-200">ΣF = m·a</span>:
+          </p>
+          <div class="p-2 bg-gray-900 rounded font-mono text-[11px] md:text-xs text-center border border-gray-700/60 text-amber-300 mb-2">
+            m·a = m·g(sin θ - μ cos θ)
+          </div>
+          <p class="text-gray-400">
+            ¡La masa <span class="math-sym font-semibold">m</span> está en ambos lados y se simplifica! Por ello, sin resistencia del aire, una masa de 1 kg y otra de 30 kg deslizan exactamente con la misma aceleración.
+          </p>
+        </div>
+
+        <!-- Bloque 3: El Ángulo Crítico de Deslizamiento -->
+        <div class="bg-gray-950/50 p-4 rounded-xl border border-gray-800">
+          <h3 class="font-bold text-emerald-400 text-sm mb-2 flex items-center gap-1.5">
+            3. El Ángulo Crítico (tan θ = μ)
+          </h3>
+          <p class="mb-2">
+            Para que el cuerpo acelere hacia abajo se requiere que la fuerza impulsora supere la fricción:
+          </p>
+          <div class="p-2 bg-gray-900 rounded font-mono text-[11px] md:text-xs text-center border border-gray-700/60 text-emerald-300 mb-2">
+            mg·sin θ &gt; μ·mg·cos θ ⇒ tan(θ) &gt; μ
+          </div>
+          <p class="text-gray-400">
+            Si <span class="math-sym font-semibold">tan(θ) = μ</span>, la aceleración es nula (<span class="math-sym">a = 0</span>) y el bloque viaja a velocidad constante (o permanece en reposo si arrancó desde <span class="math-sym">v = 0</span>).
+          </p>
+        </div>
+
+      </div>
+    </details>
+  </section>
+
+  <!-- PIE DE PÁGINA -->
+  <footer class="max-w-7xl mx-auto mt-8 pb-8 text-center text-xs text-gray-500 border-t border-gray-800/60 pt-4">
+    <p>Simulador Educativo de Física Universitaria • Mecánica Clásica y Dinámica Newtoniana</p>
+  </footer>
+
+  <!-- SCRIPT COMPLETO DE FÍSICA, ANIMACIÓN Y GRÁFICAS -->
+  <script>
+    /* =========================================================================
+       1. ESTADO GLOBAL Y VARIABLES FÍSICAS
+       ========================================================================= */
+    const state = {
+      // Parámetros físicos configurables
+      m: 5.0,          // masa en kg
+      thetaDeg: 30.0,  // ángulo en grados
+      mu: 0.25,        // coeficiente de fricción cinético
+      g: 9.81,         // gravedad en m/s²
+      x0: 0.0,         // posición inicial (m)
+      v0: 0.0,         // velocidad inicial (m/s)
+
+      // Cinemática y estado en tiempo real
+      rampLengthMeters: 10.0, // longitud de la rampa en metros
+      t: 0.0,                 // tiempo actual en segundos
+      x: 0.0,                 // posición actual (m)
+      v: 0.0,                 // velocidad actual (m/s)
+      a: 0.0,                 // aceleración actual (m/s²)
+      
+      // Control de simulación
+      isPlaying: false,
+      simSpeed: 1.0,
+      lastTimestamp: null,
+      isFinished: false,
+
+      // Visualización
+      showComponents: true,
+      showRuler: true,
+      hoverGraphT: null       // cursor sobre gráficas
+    };
+
+    // Magnitudes dinámicas calculadas
+    let phys = {
+      thetaRad: 0,
+      sinTheta: 0,
+      cosTheta: 0,
+      weight: 0,
+      normal: 0,
+      parallelWeight: 0,
+      frictionMax: 0,
+      netForce: 0,
+      aTheoretical: 0,
+      tanTheta: 0,
+      motionMode: 'accelerating' // 'accelerating', 'constant_vel', 'stuck'
+    };
+
+    /* =========================================================================
+       2. ELEMENTOS DEL DOM
+       ========================================================================= */
+    const dom = {
+      // Sliders e inputs
+      inputMass: document.getElementById('inputMass'),
+      inputAngle: document.getElementById('inputAngle'),
+      inputMu: document.getElementById('inputMu'),
+      inputGravity: document.getElementById('inputGravity'),
+      inputX0: document.getElementById('inputX0'),
+      inputV0: document.getElementById('inputV0'),
+
+      // Etiquetas numéricas
+      valMass: document.getElementById('valMass'),
+      valAngle: document.getElementById('valAngle'),
+      valMu: document.getElementById('valMu'),
+      valGravity: document.getElementById('valGravity'),
+      valX0: document.getElementById('valX0'),
+      valV0: document.getElementById('valV0'),
+
+      // Botón Play
+      btnPlay: document.getElementById('btnPlay'),
+      playText: document.getElementById('playText'),
+      playIcon: document.getElementById('playIcon'),
+
+      // HUD
+      hudTime: document.getElementById('hudTime'),
+      hudPos: document.getElementById('hudPos'),
+      hudVel: document.getElementById('hudVel'),
+      hudRampLen: document.getElementById('hudRampLen'),
+
+      // Resultados principales
+      mainAccelValue: document.getElementById('mainAccelValue'),
+      netForceValue: document.getElementById('netForceValue'),
+      stateBanner: document.getElementById('stateBanner'),
+      stateIcon: document.getElementById('stateIcon'),
+      stateTitle: document.getElementById('stateTitle'),
+      stateDesc: document.getElementById('stateDesc'),
+
+      // Barras comparativas de fuerzas
+      barImpulse: document.getElementById('barImpulse'),
+      barFriction: document.getElementById('barFriction'),
+      barImpulseText: document.getElementById('barImpulseText'),
+      barFrictionText: document.getElementById('barFrictionText'),
+
+      // Panel de análisis
+      resWeight: document.getElementById('resWeight'),
+      resNormal: document.getElementById('resNormal'),
+      resParallel: document.getElementById('resParallel'),
+      resFriction: document.getElementById('resFriction'),
+
+      // Canvases
+      simCanvas: document.getElementById('simCanvas'),
+      fbdCanvas: document.getElementById('fbdCanvas'),
+      graphCanvasX: document.getElementById('graphCanvasX'),
+      graphCanvasV: document.getElementById('graphCanvasV'),
+      graphCanvasA: document.getElementById('graphCanvasA'),
+
+      // Labels gráficas
+      graphLabelX: document.getElementById('graphLabelX'),
+      graphLabelV: document.getElementById('graphLabelV'),
+      graphLabelA: document.getElementById('graphLabelA'),
+
+      // Checkboxes
+      checkShowComponents: document.getElementById('checkShowComponents'),
+      checkRuler: document.getElementById('checkRuler')
+    };
+
+    /* =========================================================================
+       3. CÁLCULOS FÍSICOS Y DINÁMICOS
+       ========================================================================= */
+    function computePhysics() {
+      phys.thetaRad = (state.thetaDeg * Math.PI) / 180;
+      phys.sinTheta = Math.sin(phys.thetaRad);
+      phys.cosTheta = Math.cos(phys.thetaRad);
+      phys.tanTheta = Math.tan(phys.thetaRad);
+
+      // Peso total: P = mg
+      phys.weight = state.m * state.g;
+
+      // Fuerza Normal: N = mg * cos(theta)
+      phys.normal = state.m * state.g * phys.cosTheta;
+
+      // Componente paralela del peso hacia abajo de la rampa: mg * sin(theta)
+      phys.parallelWeight = state.m * state.g * phys.sinTheta;
+
+      // Fuerza de fricción cinética: f = mu * N = mu * mg * cos(theta)
+      phys.frictionMax = state.mu * phys.normal;
+
+      // Fuerza neta paralela a la rampa
+      phys.netForce = phys.parallelWeight - phys.frictionMax;
+
+      // Aceleración teórica: a = g * (sin(theta) - mu * cos(theta))
+      phys.aTheoretical = state.g * (phys.sinTheta - state.mu * phys.cosTheta);
+
+      // Determinar régimen físico
+      const EPSILON = 1e-4;
+      if (phys.aTheoretical > EPSILON) {
+        phys.motionMode = 'accelerating';
+      } else if (Math.abs(phys.aTheoretical) <= EPSILON) {
+        phys.motionMode = 'constant_vel';
+      } else {
+        phys.motionMode = 'stuck';
+      }
+
+      // Actualizar aceleración activa
+      updateKinematicState();
+    }
+
+    function updateKinematicState() {
+      if (phys.motionMode === 'stuck') {
+        if (state.v0 > 0 && state.v > 0) {
+          // El cuerpo fue lanzado y desacelera hasta detenerse
+          state.a = phys.aTheoretical;
+        } else {
+          // El cuerpo está en reposo estático
+          state.a = 0;
+          state.v = 0;
+        }
+      } else {
+        state.a = phys.aTheoretical;
+      }
+    }
+
+    /* =========================================================================
+       4. ACTUALIZACIÓN DE LA INTERFAZ DE USUARIO (UI)
+       ========================================================================= */
+    function updateUI() {
+      // Valores de sliders
+      dom.valMass.textContent = state.m.toFixed(1);
+      dom.valAngle.textContent = state.thetaDeg.toFixed(1);
+      dom.valMu.textContent = state.mu.toFixed(2);
+      dom.valGravity.textContent = state.g.toFixed(2);
+      dom.valX0.textContent = state.x0.toFixed(1) + ' m';
+      dom.valV0.textContent = state.v0.toFixed(1) + ' m/s';
+
+      // Gran indicador de aceleración
+      const aSign = phys.aTheoretical > 0 ? '+' : '';
+      dom.mainAccelValue.innerHTML = `${aSign}${phys.aTheoretical.toFixed(2)} <span class="text-sm font-sans font-normal text-gray-400">m/s²</span>`;
+      
+      if (phys.motionMode === 'accelerating') {
+        dom.mainAccelValue.className = "text-3xl md:text-4xl font-extrabold font-mono tracking-tight text-cyan-400";
+      } else if (phys.motionMode === 'constant_vel') {
+        dom.mainAccelValue.className = "text-3xl md:text-4xl font-extrabold font-mono tracking-tight text-amber-400";
+      } else {
+        dom.mainAccelValue.className = "text-3xl md:text-4xl font-extrabold font-mono tracking-tight text-rose-400";
+      }
+
+      // Fuerza neta
+      const fnSign = phys.netForce > 0 ? '+' : '';
+      dom.netForceValue.textContent = `${fnSign}${phys.netForce.toFixed(2)} N`;
+
+      // Actualizar Banner de Estado Físico Exigido en el Prompt
+      updateStateBanner();
+
+      // Barras comparativas de fuerzas
+      const maxF = Math.max(phys.parallelWeight, phys.frictionMax, 0.1);
+      const impPct = Math.min(100, Math.max(5, (phys.parallelWeight / (phys.parallelWeight + phys.frictionMax || 1)) * 100));
+      const fricPct = 100 - impPct;
+      dom.barImpulse.style.width = impPct + '%';
+      dom.barFriction.style.width = fricPct + '%';
+      dom.barImpulseText.textContent = phys.parallelWeight.toFixed(2) + ' N';
+      dom.barFrictionText.textContent = phys.frictionMax.toFixed(2) + ' N';
+
+      // Tabla de análisis
+      dom.resWeight.textContent = phys.weight.toFixed(2) + ' N';
+      dom.resNormal.textContent = phys.normal.toFixed(2) + ' N';
+      dom.resParallel.textContent = phys.parallelWeight.toFixed(2) + ' N';
+      dom.resFriction.textContent = phys.frictionMax.toFixed(2) + ' N';
+
+      // HUD
+      dom.hudTime.textContent = state.t.toFixed(2) + ' s';
+      dom.hudPos.textContent = state.x.toFixed(2) + ' m';
+      dom.hudVel.textContent = state.v.toFixed(2) + ' m/s';
+    }
+
+    function updateStateBanner() {
+      const banner = dom.stateBanner;
+      const icon = dom.stateIcon;
+      const title = dom.stateTitle;
+      const desc = dom.stateDesc;
+
+      if (phys.motionMode === 'accelerating') {
+        // a > 0
+        banner.className = "mt-3 p-3 rounded-xl border border-cyan-500/40 bg-cyan-950/30 text-cyan-200 status-pulse";
+        icon.innerHTML = `<svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>`;
+        title.textContent = "a > 0 : El cuerpo acelera hacia abajo de la rampa";
+        title.className = "text-xs md:text-sm font-bold text-cyan-300";
+        desc.textContent = `La componente paralela del peso (${phys.parallelWeight.toFixed(1)} N) supera la fuerza de fricción (${phys.frictionMax.toFixed(1)} N). La aceleración neta es a = ${phys.aTheoretical.toFixed(2)} m/s².`;
+      } else if (phys.motionMode === 'constant_vel') {
+        // a = 0
+        banner.className = "mt-3 p-3 rounded-xl border border-amber-500/40 bg-amber-950/30 text-amber-200";
+        icon.innerHTML = `<svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14" /></svg>`;
+        title.textContent = "a = 0 : Equilibrio dinámico (Velocidad constante)";
+        title.className = "text-xs md:text-sm font-bold text-amber-300";
+        desc.textContent = `Condición crítica exacta: tan(θ) = μ (tan(${state.thetaDeg}°) = ${phys.tanTheta.toFixed(3)} ≈ ${state.mu.toFixed(3)}). Las fuerzas están equilibradas.`;
+      } else {
+        // a < 0
+        banner.className = "mt-3 p-3 rounded-xl border border-rose-500/40 bg-rose-950/30 text-rose-200";
+        icon.innerHTML = `<svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`;
+        title.textContent = "a < 0 : El modelo indica que el cuerpo no puede acelerar hacia abajo";
+        title.className = "text-xs md:text-sm font-bold text-rose-300";
+        desc.textContent = `La fricción potencial (${phys.frictionMax.toFixed(1)} N) excede el impulso gravitatorio (${phys.parallelWeight.toFixed(1)} N). Sin un empuje externo o velocidad previa, el bloque permanece en reposo bloqueado por rozamiento.`;
+      }
+    }
+
+    /* =========================================================================
+       5. CONTROLADORES DE ENTRADA Y EVENTOS
+       ========================================================================= */
+    function updateFromInputs() {
+      state.m = parseFloat(dom.inputMass.value);
+      state.thetaDeg = parseFloat(dom.inputAngle.value);
+      state.mu = parseFloat(dom.inputMu.value);
+      state.g = parseFloat(dom.inputGravity.value);
+      state.x0 = parseFloat(dom.inputX0.value);
+      state.v0 = parseFloat(dom.inputV0.value);
+
+      // Si no está corriendo la simulación, actualizar x y v al punto inicial
+      if (!state.isPlaying && state.t === 0) {
+        state.x = state.x0;
+        state.v = state.v0;
+      }
+
+      computePhysics();
+      updateUI();
+      renderAll();
+    }
+
+    function togglePlay() {
+      if (state.isPlaying) {
+        pauseSimulation();
+      } else {
+        startSimulation();
+      }
+    }
+
+    function startSimulation() {
+      // Si ya llegó al final de la rampa o está bloqueado, reiniciar al inicio
+      if (state.isFinished || state.x >= state.rampLengthMeters) {
+        resetSimulation();
+      }
+      state.isPlaying = true;
+      state.lastTimestamp = performance.now();
+      dom.playText.textContent = "⏸️ Pausar";
+      dom.playIcon.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+      dom.btnPlay.className = "px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-amber-600/25 transition active:scale-95";
+      requestAnimationFrame(animationLoop);
+    }
+
+    function pauseSimulation() {
+      state.isPlaying = false;
+      dom.playText.textContent = "▶️ Iniciar";
+      dom.playIcon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+      dom.btnPlay.className = "px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25 transition active:scale-95";
+    }
+
+    function resetSimulation() {
+      pauseSimulation();
+      state.t = 0.0;
+      state.x = state.x0;
+      state.v = state.v0;
+      state.isFinished = false;
+      computePhysics();
+      updateUI();
+      renderAll();
+    }
+
+    function resetParameters() {
+      dom.inputMass.value = 5.0;
+      dom.inputAngle.value = 30.0;
+      dom.inputMu.value = 0.25;
+      dom.inputGravity.value = 9.81;
+      dom.inputX0.value = 0.0;
+      dom.inputV0.value = 0.0;
+      updateFromInputs();
+      resetSimulation();
+    }
+
+    function setSimSpeed(speed) {
+      state.simSpeed = speed;
+      document.querySelectorAll('.speed-btn').forEach(btn => {
+        if (parseFloat(btn.getAttribute('data-speed')) === speed) {
+          btn.className = "speed-btn px-2 py-1 rounded font-mono bg-cyan-500/20 text-cyan-400 font-semibold";
+        } else {
+          btn.className = "speed-btn px-2 py-1 rounded font-mono hover:bg-gray-800 text-gray-400";
+        }
+      });
+    }
+
+    // Presets experimentales
+    function setPreset(type) {
+      if (type === 'noFriction') {
+        dom.inputMu.value = 0.00;
+        dom.inputAngle.value = 30.0;
+        dom.inputGravity.value = 9.81;
+      } else if (type === 'criticalAngle') {
+        // Encontrar theta tal que tan(theta) = mu
+        const muVal = 0.35;
+        const angleDeg = (Math.atan(muVal) * 180 / Math.PI);
+        dom.inputMu.value = muVal.toFixed(2);
+        dom.inputAngle.value = angleDeg.toFixed(1);
+        dom.inputV0.value = 1.5; // darle un empuje inicial para ver velocidad constante
+      } else if (type === 'stuck') {
+        dom.inputAngle.value = 15.0;
+        dom.inputMu.value = 0.65; // tan(15°) = 0.268 < 0.65 => bloqueado
+        dom.inputV0.value = 0.0;
+      } else if (type === 'steep') {
+        dom.inputAngle.value = 60.0;
+        dom.inputMu.value = 0.15;
+      } else if (type === 'moon') {
+        dom.inputGravity.value = 1.62;
+        dom.inputAngle.value = 35.0;
+        dom.inputMu.value = 0.10;
+      }
+      updateFromInputs();
+      resetSimulation();
+    }
+
+    function redrawCanvasOnly() {
+      state.showComponents = dom.checkShowComponents.checked;
+      state.showRuler = dom.checkRuler.checked;
+      renderAll();
+    }
+
+    /* =========================================================================
+       6. LOOP DE ANIMACIÓN Y FÍSICA ANALÍTICA PRECISA
+       ========================================================================= */
+    function animationLoop(timestamp) {
+      if (!state.isPlaying) return;
+
+      const dtRaw = (timestamp - state.lastTimestamp) / 1000;
+      state.lastTimestamp = timestamp;
+
+      // Limitar dt para evitar saltos en cambios de pestaña
+      const dt = Math.min(dtRaw, 0.05) * state.simSpeed;
+
+      // Integración exacta para aceleración constante
+      if (phys.motionMode === 'stuck') {
+        if (state.v > 0) {
+          // Desacelera hasta frenar
+          const newV = state.v + phys.aTheoretical * dt;
+          if (newV <= 0) {
+            // Se detuvo por completo
+            const tToStop = -state.v / phys.aTheoretical;
+            state.x += state.v * tToStop + 0.5 * phys.aTheoretical * tToStop * tToStop;
+            state.v = 0;
+            state.t += tToStop;
+            state.a = 0;
+            pauseSimulation();
+            state.isFinished = true;
+          } else {
+            state.x += state.v * dt + 0.5 * phys.aTheoretical * dt * dt;
+            state.v = newV;
+            state.t += dt;
+          }
+        } else {
+          // Permanece en reposo
+          state.v = 0;
+          state.a = 0;
+          pauseSimulation();
+          state.isFinished = true;
+        }
+      } else {
+        // Acelerando o a velocidad constante
+        const aVal = phys.aTheoretical;
+        state.t += dt;
+        state.v = state.v0 + aVal * state.t;
+        state.x = state.x0 + state.v0 * state.t + 0.5 * aVal * state.t * state.t;
+
+        // Comprobar si llegó al final de la rampa
+        if (state.x >= state.rampLengthMeters) {
+          state.x = state.rampLengthMeters;
+          pauseSimulation();
+          state.isFinished = true;
+        }
+      }
+
+      updateUI();
+      renderAll();
+
+      if (state.isPlaying) {
+        requestAnimationFrame(animationLoop);
+      }
+    }
+
+    /* =========================================================================
+       7. RENDERIZADO DEL PLANO INCLINADO PRINCIPAL EN CANVAS
+       ========================================================================= */
+    function renderMainCanvas() {
+      const canvas = dom.simCanvas;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Ajustar resolución de alta densidad
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+
+      // Limpiar fondo
+      const isLight = document.documentElement.classList.contains('light');
+      ctx.fillStyle = isLight ? '#f1f5f9' : '#090d16';
+      ctx.fillRect(0, 0, w, h);
+
+      // Cuadrícula sutil de fondo
+      ctx.strokeStyle = isLight ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.5)';
+      ctx.lineWidth = 1;
+      const gridSize = 35;
+      for (let x = 0; x < w; x += gridSize) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = 0; y < h; y += gridSize) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // Parámetros de geometría de la cuña (plano inclinado)
+      const paddingX = Math.max(50, w * 0.08);
+      const groundY = h - Math.max(45, h * 0.12);
+      const rampVisualLen = Math.min(w * 0.78, (groundY - 50) / Math.sin(Math.max(phys.thetaRad, 0.15)));
+
+      const rampBottomX = w - paddingX;
+      const rampBottomY = groundY;
+
+      const rampTopX = rampBottomX - rampVisualLen * phys.cosTheta;
+      const rampTopY = rampBottomY - rampVisualLen * phys.sinTheta;
+
+      // 1. Dibujar el Suelo horizontal
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(w, groundY);
+      ctx.strokeStyle = isLight ? '#94a3b8' : '#334155';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Rayado diagonal del suelo
+      ctx.strokeStyle = isLight ? 'rgba(148, 163, 184, 0.4)' : 'rgba(51, 65, 85, 0.4)';
+      ctx.lineWidth = 1.5;
+      for (let gx = 0; gx < w; gx += 20) {
+        ctx.beginPath();
+        ctx.moveTo(gx, groundY);
+        ctx.lineTo(gx - 12, groundY + 12);
+        ctx.stroke();
+      }
+
+      // 2. Dibujar la Cuña del Plano Inclinado
+      ctx.beginPath();
+      ctx.moveTo(rampBottomX, rampBottomY);
+      ctx.lineTo(rampTopX, rampTopY);
+      ctx.lineTo(rampTopX, rampBottomY);
+      ctx.closePath();
+
+      // Gradiente de relleno de la cuña
+      const wedgeGrad = ctx.createLinearGradient(rampTopX, rampTopY, rampBottomX, rampBottomY);
+      if (isLight) {
+        wedgeGrad.addColorStop(0, '#e2e8f0');
+        wedgeGrad.addColorStop(1, '#cbd5e1');
+      } else {
+        wedgeGrad.addColorStop(0, '#1e293b');
+        wedgeGrad.addColorStop(1, '#0f172a');
+      }
+      ctx.fillStyle = wedgeGrad;
+      ctx.fill();
+
+      // Borde de la superficie de la rampa
+      ctx.beginPath();
+      ctx.moveTo(rampTopX, rampTopY);
+      ctx.lineTo(rampBottomX, rampBottomY);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Tope/Barrera inferior de la rampa
+      const stopperH = 18;
+      const stopperNormal = { x: Math.sin(phys.thetaRad), y: -Math.cos(phys.thetaRad) };
+      ctx.beginPath();
+      ctx.moveTo(rampBottomX, rampBottomY);
+      ctx.lineTo(rampBottomX + stopperNormal.x * stopperH, rampBottomY + stopperNormal.y * stopperH);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // 3. Arco y etiqueta del ángulo theta
+      const arcRadius = Math.min(65, rampVisualLen * 0.35);
+      if (state.thetaDeg > 1) {
+        ctx.beginPath();
+        ctx.arc(rampBottomX, rampBottomY, arcRadius, Math.PI, Math.PI + phys.thetaRad, false);
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Texto del ángulo
+        const labelAngle = Math.PI + phys.thetaRad * 0.5;
+        const textX = rampBottomX + (arcRadius + 16) * Math.cos(labelAngle);
+        const textY = rampBottomY + (arcRadius + 16) * Math.sin(labelAngle);
+        drawPillBadge(ctx, `θ = ${state.thetaDeg.toFixed(1)}°`, textX, textY, '#f97316', '#fff');
+      }
+
+      // 4. Marcas de la Regla a lo largo de la rampa (si está activa)
+      if (state.showRuler) {
+        const numTicks = 10;
+        ctx.strokeStyle = isLight ? 'rgba(71, 85, 105, 0.6)' : 'rgba(148, 163, 184, 0.5)';
+        ctx.fillStyle = isLight ? '#475569' : '#94a3b8';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+
+        for (let i = 0; i <= numTicks; i++) {
+          const frac = i / numTicks;
+          const tx = rampTopX + frac * (rampBottomX - rampTopX);
+          const ty = rampTopY + frac * (rampBottomY - rampTopY);
+          
+          // Vector perpendicular hacia arriba
+          const tickLen = i % 2 === 0 ? 10 : 6;
+          const p1x = tx;
+          const p1y = ty;
+          const p2x = tx - Math.sin(phys.thetaRad) * tickLen;
+          const p2y = ty + Math.cos(phys.thetaRad) * tickLen;
+
+          ctx.beginPath();
+          ctx.moveTo(p1x, p1y);
+          ctx.lineTo(p2x, p2y);
+          ctx.stroke();
+
+          if (i % 2 === 0) {
+            const distM = (frac * state.rampLengthMeters).toFixed(0);
+            const lx = p2x - Math.sin(phys.thetaRad) * 8;
+            const ly = p2y + Math.cos(phys.thetaRad) * 8;
+            ctx.fillText(`${distM}m`, lx, ly);
+          }
+        }
+      }
+
+      // 5. Posición del Bloque a lo largo de la rampa
+      // Relación escala: metros a píxeles
+      const blockFrac = Math.max(0, Math.min(1, state.x / state.rampLengthMeters));
+      
+      // Dimensiones del bloque escaladas con la masa (pero acotadas para claridad visual)
+      const baseBlockW = Math.max(45, Math.min(70, 35 + state.m * 1.2));
+      const baseBlockH = Math.max(30, Math.min(50, 22 + state.m * 0.9));
+
+      // Punto de contacto del centro de la base del bloque con la rampa
+      // Dejamos margen para no salirse al inicio ni al final
+      const contactPx = rampTopX + blockFrac * (rampBottomX - rampTopX);
+      const contactPy = rampTopY + blockFrac * (rampBottomY - rampTopY);
+
+      // Dibujar bloque rotado
+      ctx.save();
+      ctx.translate(contactPx, contactPy);
+      ctx.rotate(phys.thetaRad);
+
+      // Sombra del bloque
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 4;
+
+      // Cuerpo del bloque
+      const blockGrad = ctx.createLinearGradient(-baseBlockW / 2, -baseBlockH, baseBlockW / 2, 0);
+      if (isLight) {
+        blockGrad.addColorStop(0, '#38bdf8');
+        blockGrad.addColorStop(1, '#0284c7');
+      } else {
+        blockGrad.addColorStop(0, '#0284c7');
+        blockGrad.addColorStop(1, '#0369a1');
+      }
+      ctx.fillStyle = blockGrad;
+      ctx.strokeStyle = '#e0f2fe';
+      ctx.lineWidth = 2.5;
+
+      // Rectángulo redondeado del bloque
+      roundRect(ctx, -baseBlockW / 2, -baseBlockH, baseBlockW, baseBlockH, 6, true, true);
+
+      // Quitar sombra para textos y vectores
+      ctx.shadowColor = 'transparent';
+
+      // Etiqueta de la Masa m dentro del bloque
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`m = ${state.m.toFixed(1)} kg`, 0, -baseBlockH / 2);
+
+      // Centro de Masa (CM) del bloque en coordenadas locales
+      const cmX = 0;
+      const cmY = -baseBlockH / 2;
+
+      // Punto del centro de masa
+      ctx.beginPath();
+      ctx.arc(cmX, cmY, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+
+      // =====================================================================
+      // 6. DIBUJO DE VECTORES DE FUERZAS REALES SOBRE EL CUERPO
+      // Rojo: Peso real mg (vertical hacia abajo)
+      // Verde: Fuerza Normal N (perpendicular a la rampa hacia arriba)
+      // Morado: Fuerza de Fricción f = mu*N (paralela a la rampa hacia arriba)
+      // Cian contrastante: Vector Aceleración a (paralelo a la rampa)
+      // NOTA PEDAGÓGICA: Las componentes (mg·sinθ y mg·cosθ) NO se dibujan sobre
+      // el cuerpo físico para preservar el rigor de fuerzas reales aplicadas,
+      // y se aprecian con total claridad en el Diagrama de Cuerpo Libre (DCL).
+      // =====================================================================
+      const forceScale = 1.35; // factor de escala para píxeles por Newton
+
+      // 6a. Fuerza Normal N (Verde) -> apunta hacia arriba perpendicular en local (-Y)
+      const normLen = phys.normal * forceScale;
+      drawArrowLocal(ctx, cmX, cmY, cmX, cmY - normLen, '#22c55e', 4);
+      drawPillBadge(ctx, `N = ${phys.normal.toFixed(1)} N`, cmX + 12, cmY - normLen * 0.7, '#22c55e', '#fff', 10);
+
+      // 6b. Fuerza de Fricción f = mu * N (Morado) -> apunta hacia arriba de la rampa en local (-X)
+      const fricLen = phys.frictionMax * forceScale;
+      if (fricLen > 1) {
+        // La fricción actúa en la superficie de contacto o en el CM
+        drawArrowLocal(ctx, cmX, 0, cmX - fricLen, 0, '#a855f7', 4);
+        drawPillBadge(ctx, `f = ${phys.frictionMax.toFixed(1)} N`, cmX - fricLen * 0.6, 15, '#a855f7', '#fff', 10);
+      }
+
+      // 6c. Vector Aceleración a (Cian contrastante) -> paralelo hacia abajo (+X)
+      if (Math.abs(phys.aTheoretical) > 0.05) {
+        const accelPixelLen = Math.min(120, Math.abs(phys.aTheoretical) * 12);
+        const accelSign = phys.aTheoretical > 0 ? 1 : -1;
+        const aStartX = 0;
+        const aStartY = -baseBlockH - 15;
+        const aEndX = aStartX + accelPixelLen * accelSign;
+        drawArrowLocal(ctx, aStartX, aStartY, aEndX, aStartY, '#06b6d4', 4.5, true);
+        drawPillBadge(ctx, `a = ${phys.aTheoretical.toFixed(2)} m/s²`, aStartX + (aEndX - aStartX) * 0.5, aStartY - 14, '#06b6d4', '#000', 10, true);
+      }
+
+      // 6d. Vector Peso Total mg (Rojo) -> Vertical absoluto hacia abajo
+      // En el sistema de coordenadas rotado por theta, la vertical apunta con ángulo (PI/2 - theta)
+      const weightLen = phys.weight * forceScale;
+      const weightLocalAngle = Math.PI / 2 - phys.thetaRad;
+      const wEndX = cmX + weightLen * Math.cos(weightLocalAngle);
+      const wEndY = cmY + weightLen * Math.sin(weightLocalAngle);
+      drawArrowLocal(ctx, cmX, cmY, wEndX, wEndY, '#ef4444', 4);
+      drawPillBadge(ctx, `P = mg (${phys.weight.toFixed(1)} N)`, wEndX + 8, wEndY - 6, '#ef4444', '#fff', 10);
+
+      ctx.restore();
+    }
+
+    /* =========================================================================
+       8. RENDERIZADO DEL DIAGRAMA DE CUERPO LIBRE (DCL)
+       ========================================================================= */
+    function renderFBD() {
+      const canvas = dom.fbdCanvas;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+
+      const isLight = document.documentElement.classList.contains('light');
+      ctx.fillStyle = isLight ? '#f8fafc' : '#0b1120';
+      ctx.fillRect(0, 0, w, h);
+
+      const cx = w * 0.50;
+      const cy = h * 0.50;
+
+      // Ejes rotados punteados (eje x' paralelo y eje y' perpendicular)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(phys.thetaRad);
+
+      ctx.strokeStyle = isLight ? 'rgba(100, 116, 139, 0.45)' : 'rgba(71, 85, 105, 0.55)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+
+      // Eje x'
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.42, 0);
+      ctx.lineTo(w * 0.42, 0);
+      ctx.stroke();
+
+      // Eje y'
+      ctx.beginPath();
+      ctx.moveTo(0, -h * 0.45);
+      ctx.lineTo(0, h * 0.45);
+      ctx.stroke();
+
+      ctx.setLineDash([]); // restaurar trazo continuo
+
+      // Rótulos de ejes rotados
+      ctx.font = '9px monospace';
+      ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
+      ctx.textAlign = 'right';
+      ctx.fillText("+x'", w * 0.41, -5);
+      ctx.textAlign = 'left';
+      ctx.fillText("-x'", -w * 0.41, -5);
+      ctx.textAlign = 'center';
+      ctx.fillText("+y'", 0, -h * 0.42);
+
+      // Escala visual para el DCL
+      const maxF = Math.max(phys.weight, phys.normal, 1);
+      const scale = Math.min((h * 0.38) / maxF, 2.7);
+
+      // Coordenadas del vector Peso vertical real hacia abajo en el marco rotado
+      const wLocalAngle = Math.PI / 2 - phys.thetaRad;
+      const wx = phys.weight * scale * Math.cos(wLocalAngle);
+      const wy = phys.weight * scale * Math.sin(wLocalAngle);
+
+      // 1. Vector Normal (Verde) -> hacia arriba (-Y local = +y')
+      drawArrowLocal(ctx, 0, 0, 0, -phys.normal * scale, '#22c55e', 3.5);
+      ctx.fillStyle = '#22c55e';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`N (${phys.normal.toFixed(1)} N)`, 8, -phys.normal * scale * 0.75);
+
+      // 2. Vector Fricción (Morado) -> hacia atrás (-X local = -x')
+      if (phys.frictionMax > 0.1) {
+        drawArrowLocal(ctx, 0, 0, -phys.frictionMax * scale, 0, '#a855f7', 3.5);
+        ctx.fillStyle = '#a855f7';
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(`f (${phys.frictionMax.toFixed(1)} N)`, -phys.frictionMax * scale - 6, -8);
+      }
+
+      // 3. Descomposición del Peso en componentes (si está activo el checkbox)
+      if (state.showComponents) {
+        // Líneas auxiliares punteadas de proyección ortogonal
+        ctx.save();
+        ctx.strokeStyle = isLight ? 'rgba(100, 116, 139, 0.6)' : 'rgba(148, 163, 184, 0.45)';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(wx, wy); ctx.lineTo(wx, 0); // proyecta hacia eje x'
+        ctx.moveTo(wx, wy); ctx.lineTo(0, wy); // proyecta hacia eje y'
+        ctx.stroke();
+        ctx.restore();
+
+        // Componente paralela Px = mg·sinθ (Naranja) -> sobre el eje +X local
+        drawArrowLocal(ctx, 0, 0, wx, 0, '#f97316', 3.5);
+        ctx.fillStyle = '#f97316';
+        ctx.font = 'bold 9.5px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`mg·sinθ (${phys.parallelWeight.toFixed(1)} N)`, wx * 0.55, -8);
+
+        // Componente perpendicular Py = mg·cosθ (Azul) -> sobre el eje +Y local
+        drawArrowLocal(ctx, 0, 0, 0, wy, '#3b82f6', 3.5);
+        ctx.fillStyle = '#3b82f6';
+        ctx.font = 'bold 9.5px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`mg·cosθ (${phys.normal.toFixed(1)} N)`, 8, wy * 0.7);
+
+        // Arco del ángulo θ entre el vector Peso y el eje perpendicular (+Y local)
+        if (state.thetaDeg > 4) {
+          const arcR = Math.min(30, phys.weight * scale * 0.45);
+          ctx.beginPath();
+          ctx.arc(0, 0, arcR, Math.PI / 2 - phys.thetaRad, Math.PI / 2, false);
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          const arcMidAngle = Math.PI / 2 - phys.thetaRad * 0.5;
+          const arcTextX = (arcR + 9) * Math.cos(arcMidAngle);
+          const arcTextY = (arcR + 9) * Math.sin(arcMidAngle);
+          ctx.fillStyle = '#f59e0b';
+          ctx.font = 'bold 9px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('θ', arcTextX, arcTextY);
+        }
+      }
+
+      // 4. Vector Peso Total P = mg (Rojo) -> Vertical absoluto hacia abajo
+      drawArrowLocal(ctx, 0, 0, wx, wy, '#ef4444', 3.5);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`P = mg (${phys.weight.toFixed(1)} N)`, wx + 6, wy + 4);
+
+      // Partícula central representativa
+      ctx.beginPath();
+      ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#06b6d4';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    /* =========================================================================
+       9. RENDERIZADO DE LAS 3 GRÁFICAS CINEMÁTICAS DINÁMICAS (x, v, a vs t)
+       ========================================================================= */
+    function renderGraphs() {
+      // Duración máxima del eje t para las gráficas
+      const aVal = phys.aTheoretical;
+      let tMax = 6.0;
+
+      // Calcular tiempo para recorrer la rampa si acelera
+      if (aVal > 0.05) {
+        // x(t) = x0 + v0*t + 0.5*a*t^2 = L => resolver cuadrática
+        const disc = state.v0 * state.v0 + 2 * aVal * (state.rampLengthMeters - state.x0);
+        if (disc >= 0) {
+          const tHit = (-state.v0 + Math.sqrt(disc)) / aVal;
+          tMax = Math.max(4.0, Math.min(15.0, tHit * 1.15));
+        }
+      }
+
+      // 1. Gráfica Posición vs Tiempo x(t)
+      renderSingleGraph(
+        dom.graphCanvasX,
+        dom.graphLabelX,
+        'Posición x [m]',
+        0,
+        state.rampLengthMeters,
+        tMax,
+        '#10b981',
+        (t) => {
+          if (phys.motionMode === 'stuck') {
+            if (state.v0 > 0) {
+              const tStop = -state.v0 / aVal;
+              if (t <= tStop) return state.x0 + state.v0 * t + 0.5 * aVal * t * t;
+              return state.x0 + state.v0 * tStop + 0.5 * aVal * tStop * tStop;
+            }
+            return state.x0;
+          }
+          return Math.min(state.rampLengthMeters, state.x0 + state.v0 * t + 0.5 * aVal * t * t);
+        },
+        state.x,
+        'm'
+      );
+
+      // 2. Gráfica Velocidad vs Tiempo v(t)
+      const vMaxTheor = state.v0 + Math.max(0, aVal) * tMax;
+      const vUpper = Math.max(6.0, vMaxTheor * 1.15);
+      renderSingleGraph(
+        dom.graphCanvasV,
+        dom.graphLabelV,
+        'Velocidad v [m/s]',
+        0,
+        vUpper,
+        tMax,
+        '#38bdf8',
+        (t) => {
+          if (phys.motionMode === 'stuck') {
+            if (state.v0 > 0) {
+              const vVal = state.v0 + aVal * t;
+              return Math.max(0, vVal);
+            }
+            return 0;
+          }
+          return Math.max(0, state.v0 + aVal * t);
+        },
+        state.v,
+        'm/s'
+      );
+
+      // 3. Gráfica Aceleración vs Tiempo a(t)
+      const aUpper = Math.max(10.0, Math.abs(aVal) * 1.3);
+      const aLower = Math.min(-2.0, aVal < 0 ? aVal * 1.2 : -2.0);
+      renderSingleGraph(
+        dom.graphCanvasA,
+        dom.graphLabelA,
+        'Aceleración a [m/s²]',
+        aLower,
+        aUpper,
+        tMax,
+        '#f59e0b',
+        (t) => aVal,
+        state.a,
+        'm/s²'
+      );
+    }
+
+    function renderSingleGraph(canvas, labelDom, yTitle, yMin, yMax, tMax, color, fnValue, currentValue, unit) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+
+      const isLight = document.documentElement.classList.contains('light');
+      ctx.fillStyle = isLight ? '#f8fafc' : '#090d16';
+      ctx.fillRect(0, 0, w, h);
+
+      // Márgenes para ejes y etiquetas
+      const margin = { top: 12, right: 12, bottom: 22, left: 34 };
+      const plotW = w - margin.left - margin.right;
+      const plotH = h - margin.top - margin.bottom;
+
+      // Transformaciones escala -> pantalla
+      const scaleX = (t) => margin.left + (t / tMax) * plotW;
+      const scaleY = (y) => margin.top + plotH - ((y - yMin) / (yMax - yMin)) * plotH;
+
+      // Rejilla de fondo
+      ctx.strokeStyle = isLight ? 'rgba(203, 213, 225, 0.4)' : 'rgba(30, 41, 59, 0.5)';
+      ctx.lineWidth = 1;
+
+      // Líneas horizontales de referencia
+      const ySteps = 4;
+      ctx.fillStyle = isLight ? '#64748b' : '#64748b';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      for (let i = 0; i <= ySteps; i++) {
+        const val = yMin + (i / ySteps) * (yMax - yMin);
+        const yPx = scaleY(val);
+        ctx.beginPath();
+        ctx.moveTo(margin.left, yPx);
+        ctx.lineTo(w - margin.right, yPx);
+        ctx.stroke();
+        ctx.fillText(val.toFixed(1), margin.left - 4, yPx);
+      }
+
+      // Eje cero si yMin < 0 < yMax
+      if (yMin < 0 && yMax > 0) {
+        const zeroY = scaleY(0);
+        ctx.strokeStyle = isLight ? '#94a3b8' : '#475569';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(margin.left, zeroY);
+        ctx.lineTo(w - margin.right, zeroY);
+        ctx.stroke();
+      }
+
+      // Marcas de tiempo en el eje horizontal
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const tSteps = 4;
+      for (let j = 0; j <= tSteps; j++) {
+        const tVal = (j / tSteps) * tMax;
+        const xPx = scaleX(tVal);
+        ctx.fillText(`${tVal.toFixed(0)}s`, xPx, h - margin.bottom + 4);
+      }
+
+      // Curva Teórica completa (en tono tenue)
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      const samples = 100;
+      for (let k = 0; k <= samples; k++) {
+        const t = (k / samples) * tMax;
+        const y = fnValue(t);
+        const px = scaleX(t);
+        const py = scaleY(y);
+        if (k === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      // Sombra bajo la curva hasta el tiempo actual
+      const activeT = Math.min(state.t, tMax);
+      if (activeT > 0) {
+        ctx.beginPath();
+        const activeSteps = Math.max(2, Math.floor((activeT / tMax) * samples));
+        for (let k = 0; k <= activeSteps; k++) {
+          const t = (k / activeSteps) * activeT;
+          const y = fnValue(t);
+          const px = scaleX(t);
+          const py = scaleY(y);
+          if (k === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.lineTo(scaleX(activeT), scaleY(0));
+        ctx.lineTo(scaleX(0), scaleY(0));
+        ctx.closePath();
+        ctx.fillStyle = color + '22'; // 15% opacidad
+        ctx.fill();
+      }
+
+      // Punto indicador actual de la simulación
+      const curX = scaleX(activeT);
+      const curY = scaleY(fnValue(activeT));
+
+      // Línea de barrido vertical del tiempo actual
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(curX, margin.top);
+      ctx.lineTo(curX, h - margin.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Punto luminoso animado
+      ctx.beginPath();
+      ctx.arc(curX, curY, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Actualizar etiqueta del valor instantáneo
+      labelDom.textContent = `${fnValue(state.t).toFixed(2)} ${unit}`;
+    }
+
+    /* =========================================================================
+       10. UTILIDADES GRÁFICAS (Flechas vectoriales, badges, rectángulos)
+       ========================================================================= */
+    function drawArrowLocal(ctx, x1, y1, x2, y2, color, lineWidth = 3, dashed = false) {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.hypot(dx, dy);
+      if (len < 2) return;
+
+      const angle = Math.atan2(dy, dx);
+      const arrowHeadLen = Math.min(14, Math.max(8, len * 0.28));
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = 'round';
+
+      if (dashed) {
+        ctx.setLineDash([5, 3]);
+      }
+
+      // Línea del vector
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      ctx.setLineDash([]); // restaurar
+
+      // Punta de flecha triangular rellena
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(
+        x2 - arrowHeadLen * Math.cos(angle - Math.PI / 6),
+        y2 - arrowHeadLen * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        x2 - arrowHeadLen * Math.cos(angle + Math.PI / 6),
+        y2 - arrowHeadLen * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawPillBadge(ctx, text, x, y, bgColor, textColor, fontSize = 11, darkText = false) {
+      ctx.save();
+      ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+      const paddingH = 6;
+      const textMetrics = ctx.measureText(text);
+      const badgeW = textMetrics.width + paddingH * 2;
+      const badgeH = fontSize + 8;
+
+      ctx.fillStyle = bgColor;
+      roundRect(ctx, x - badgeW / 2, y - badgeH / 2, badgeW, badgeH, 4, true, false);
+
+      ctx.fillStyle = darkText ? '#0f172a' : '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y);
+      ctx.restore();
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    function renderAll() {
+      renderMainCanvas();
+      renderFBD();
+      renderGraphs();
+    }
+
+    /* =========================================================================
+       11. MANEJO DE TEMAS Y REDIMENSIONAMIENTO
+       ========================================================================= */
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      if (isDark) {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        document.getElementById('themeIconDark').classList.add('hidden');
+        document.getElementById('themeIconLight').classList.remove('hidden');
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        document.getElementById('themeIconLight').classList.add('hidden');
+        document.getElementById('themeIconDark').classList.remove('hidden');
+      }
+      renderAll();
+    }
+
+    // Inicialización al cargar la ventana
+    window.addEventListener('resize', () => {
+      renderAll();
+    });
+
+    // Tecla Espacio para Play/Pausa, Tecla R para reiniciar
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'KeyR') {
+        resetSimulation();
+      }
+    });
+
+    // Arranque inicial
+    computePhysics();
+    updateUI();
+    // Renderizado en próximo frame para asegurar dimensiones correctas del layout
+    setTimeout(() => {
+      renderAll();
+    }, 60);
+
+  </script>
+</body>
+</html>
